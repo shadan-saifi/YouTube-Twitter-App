@@ -14,7 +14,7 @@ const publishVideo = asyncHandler(async (req, res) => {
     }
     console.log("req.files",req.files);
    
-    const videoFileLocalPath = req.files?.videoFile[0]?.path
+    const videoFileLocalPath = req.files?.videoFile[0].path
     
     if (!videoFileLocalPath) {
         throw new ApiError(400, "Video file is required")
@@ -327,9 +327,11 @@ const deleteVideo = asyncHandler(async (req, res) => {
     }
 
     const response = await Video.findByIdAndDelete(videoId)
-    console.log("video deleted", response);
+    if(!response){
+        throw new ApiError(400, "Error while deleting video")
+    }
 
-    res.status(200).json(new ApiResponse(200, response, "Video file deleted successfully"))
+    res.status(200).json(new ApiResponse(200, {}, "Video file deleted successfully"))
 
 })
 
