@@ -11,6 +11,7 @@
 - [Installation](#installation)
 - [Usage](#usage)
 - [API Documentation](#api-documentation)
+- [Models Link](#models-link)
 - [Acknowledgments](#acknowledgments)
 - [Contact](#contact)
 
@@ -55,7 +56,9 @@ The YouTube Clone Project is a comprehensive video-sharing platform that replica
 To run the YouTube clone on your local machine, follow these steps:
 
 1. Clone the repository:
-
+  ```bash
+  git clone https://github.com/shadan-saifi/YouTube-Twitter-App
+  ```
 2. Navigate to the project directory:
 
   ```bash
@@ -79,6 +82,10 @@ Open your web browser and navigate to http://localhost:3000.
 ## API Documentation
 
 Explore the API using [Postman](https://documenter.getpostman.com/view/32131496/2s9YymHQNx).
+
+## Models Link
+
+Explore by [clicking here](https://app.eraser.io/workspace/YtPqZ1VogxGy1jzIDkzj)
 
 ## Acknowledgments
 
