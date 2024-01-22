@@ -55,8 +55,11 @@ The YouTube Clone Project is a comprehensive video-sharing platform that replica
 To run the YouTube clone on your local machine, follow these steps:
 
 1. Clone the repository:
+   ```bash
+   git clone https://github.com/shadan-saifi/YouTube-Twitter-App
+   ```
 
-2. Navigate to the project directory:
+3. Navigate to the project directory:
 
   ```bash
   cd youtube-clone
