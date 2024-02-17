@@ -7,7 +7,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 
 const toggleSubscription = asyncHandler(async (req, res) => {
-    const { channelId } = req.params
+    const { username } = req.params
 
     const user = await User.findById(req.user?._id);
 
@@ -15,25 +15,24 @@ const toggleSubscription = asyncHandler(async (req, res) => {
         throw new ApiError(404, "user not found");
     }
 
-    if (!isValidObjectId(channelId)) {
-        throw new ApiError(401, "invalid channel ID")
+    if (!username) {
+        throw new ApiError(400, "Username is missing")
     }
 
-    const channel = await User.findById(channelId);
-
+    const channel = await User.findOne({ username: username });
     if (!channel) {
         throw new ApiError(401, "channel does not exist")
     }
 
     try {
         const isSubscribedTo = await Subscription.findOne({
-            channel: channelId,
+            channel: channel?._id,
             subscriber: user?._id
         })
 
         if (!isSubscribedTo) {
             const createSubscription = await Subscription.create({
-                channel: channelId,
+                channel: channel?._id,
                 subscriber: user?._id
             })
             if (!createSubscription) {
@@ -43,7 +42,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
             res.status(200).json(new ApiResponse(200, createSubscription, "Subscribed to channel successfully"))
         } else {
             const removeSubscription = await Subscription.findOneAndDelete({
-                channel: channelId,
+                channel: channel?._id,
                 subscriber: user?._id
             })
             if (!removeSubscription) {

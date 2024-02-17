@@ -49,7 +49,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     if (!avatarLocalPath) {
-        throw new ApiError(409, "in local path:Avatar image is required")
+        throw new ApiError(409, "In local path : Avatar image is required")
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath)
@@ -90,8 +90,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
     const { username, password, email } = req.body
-    if (!username && !password) {
-        throw new ApiError(400, "username or password is required")
+    if ((!username || !email) && !password) {
+        throw new ApiError(400, "username/email or password is required")
     }
     const user = await User.findOne(
         {
@@ -102,9 +102,9 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(404, "user does not exists")
     }
 
-    const isPasswordValid = user.isPasswordCorrect(password)
+    const isPasswordValid = await user.isPasswordCorrect(password)
     if (!isPasswordValid) {
-        throw new ApiError(401, "Invalid user credentials")
+        throw new ApiError(401, "Invalid user password")
     }
     const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id)
 

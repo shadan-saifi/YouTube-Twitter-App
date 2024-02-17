@@ -8,14 +8,13 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 
 const publishVideo = asyncHandler(async (req, res) => {
-    const { title, description} = req.body;
+    const { title, description } = req.body;
     if (!title || !description) {
         throw new ApiError(401, "All fields are required")
     }
-    console.log("req.files",req.files);
-   
+
     const videoFileLocalPath = req.files?.videoFile[0].path
-    
+
     if (!videoFileLocalPath) {
         throw new ApiError(400, "Video file is required")
     }
@@ -57,7 +56,6 @@ const publishVideo = asyncHandler(async (req, res) => {
         description,
         duration: videoFile.duration,
         views: 0,
-        
         owner: user._id
     })
 
@@ -68,20 +66,20 @@ const publishVideo = asyncHandler(async (req, res) => {
 
 })
 
-const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
+const getSearchedVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, query, sortBy, sortType, /*userId*/ } = req.query
 
-    if (!isValidObjectId(userId)) {
-        throw new ApiError(401, "Invalid user ID")
-    }
+    // if (!isValidObjectId(userId)) {
+    //     throw new ApiError(401, "Invalid user ID")
+    // }
     if (!query || !sortBy || !sortType) {
         throw new ApiError(400, "all fields are required")
     }
 
-    const user = User.findById(userId)
-    if (!user) {
-        throw new ApiError(400, "user not found")
-    }
+    // const user =await User.findById(userId)
+    // if (!user) {
+    //     throw new ApiError(400, "user not found")
+    // }
 
     const options = {
         page: parseInt(page),
@@ -89,9 +87,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     };
 
     await Video.createIndexes({ title: "text", description: "text" });
-
-
-    const allVideos = Video.aggregate([
+    const allVideos =await Video.aggregate([
         {
             $match: {
                 $text: { $search: query }
@@ -123,12 +119,140 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     try {
         const listVideos = await Video.aggregatePaginate(allVideos, options)
-        if (listVideos.docs.length===0) {
-            res.status(200).json(new ApiResponse(200, {}, "user do not have videos"))
+        if (listVideos.docs.length === 0) {
+            return res.status(200).json(new ApiResponse(200, {}, "No videos to show"))
+        }else{
+            return res.status(200).json(new ApiResponse(200, listVideos, "videos list fetched successfully"))
         }
 
-        res.status(200).json(new ApiResponse(200, listVideos, "videos list fetched successfully"))
+    } catch (error) {
+        throw new ApiError(400, error.message || "something went wrong with paginationn")
+    }
+})
 
+const getAllUserVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, sortBy, sortType, username } = req.query
+    if (!username) {
+        throw new ApiError(400, "Username is missing")
+    }
+    const user = await User.findOne({ username: username });
+    if (!user) {
+        throw new ApiError(400, "user not found")
+    }
+
+    const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+    };
+
+    const allVideos =await Video.aggregate([
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(user?._id)
+            }
+        },
+        {
+            $sort: {
+                [sortBy]: sortType === 'asc' ? 1 : -1
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerOfVideo",
+                pipeline: [{
+                    $project: {
+                        fullname: 1,
+                        username: 1,
+                        avatar: 1
+                    }
+                }]
+            },
+        }
+
+    ])
+
+    try {
+        const listVideos = await Video.aggregatePaginate(allVideos, options)
+        if (listVideos.docs.length === 0) {
+           return res.status(200).json(new ApiResponse(200, {}, "user do not have videos"))
+        } else {
+           return res.status(200).json(new ApiResponse(200, listVideos, "videos list fetched successfully"))
+        }
+    } catch (error) {
+        throw new ApiError(400, error.message || "something went wrong with paginationn")
+    }
+})
+
+const getUserSearchedVideos = asyncHandler(async (req, res) => {
+
+    const { page = 1, limit = 10, query, sortBy, sortType, username } = req.query
+
+    if (!username) {
+        throw new ApiError(400, "Username is missing")
+    }
+   
+    if (!query || !sortBy || !sortType) {
+        throw new ApiError(400, "all fields are required")
+    }
+
+    const user = await User.findOne({ username: username });
+    if (!user) {
+        throw new ApiError(400, "user not found")
+    }
+
+    console.log("user",user);
+    const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+    };
+
+    await Video.createIndexes({ title: "text", description: "text" });
+    const allVideos =await Video.aggregate([
+        {
+            $match: {
+                $text: { $search: query }
+            }
+        },
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(user?._id)
+            }
+        },
+        {
+            $sort: {
+                score: { $meta: "textScore" },
+                [sortBy]: sortType === 'asc' ? 1 : -1
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerOfVideo",
+                pipeline: [{
+                    $project: {
+                        fullname: 1,
+                        username: 1,
+                        avatar: 1
+                    }
+                }]
+            },
+        }
+
+    ])
+console.log("allvideos",allVideos);
+    try {
+        const listVideos = await Video.aggregatePaginate(allVideos, options)
+        console.log("listVideos",listVideos);
+        if (listVideos.docs.length === 0) {
+            return res.status(200).json(new ApiResponse(200, {}, "user do not have videos"))
+        } else {
+            return res.status(200).json(new ApiResponse(200, listVideos, "videos list fetched successfully"))
+        }
     } catch (error) {
         throw new ApiError(400, error.message || "something went wrong with paginationn")
     }
@@ -141,10 +265,10 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid video id");
     }
 
-    const isVideoExist=await Video.findById(videoId)
-    
-    if(!isVideoExist){
-        throw new ApiError(404,"Video not found")
+    const isVideoExist = await Video.findById(videoId)
+
+    if (!isVideoExist) {
+        throw new ApiError(404, "Video not found")
     }
 
     const video = await Video.aggregate([
@@ -154,11 +278,11 @@ const getVideoById = asyncHandler(async (req, res) => {
             },
         },
         {
-            $lookup:{
-                from:"videos",
-                localField:"_id",
-                foreignField:"_id",
-                as:"video"
+            $lookup: {
+                from: "videos",
+                localField: "_id",
+                foreignField: "_id",
+                as: "video"
             }
         },
         {
@@ -221,7 +345,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                         else: false
                     }
                 },
-                video:{$first:"$video"}
+                video: { $first: "$video" }
 
             }
         },
@@ -241,8 +365,6 @@ const getVideoById = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, video, "video fetched succesfully"))
 
 })
-
-
 
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
@@ -327,7 +449,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
     }
 
     const response = await Video.findByIdAndDelete(videoId)
-    if(!response){
+    if (!response) {
         throw new ApiError(400, "Error while deleting video")
     }
 
@@ -357,4 +479,4 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, updatedVideo, "Publish status toggled successfully"));
 })
 
-export { publishVideo, getVideoById, updateVideo, deleteVideo, togglePublishStatus, getAllVideos }
+export { publishVideo, getVideoById, updateVideo, deleteVideo, togglePublishStatus, getSearchedVideos, getAllUserVideos, getUserSearchedVideos }
