@@ -21,7 +21,7 @@ const asyncHandler=(fn)=>async(req,res,next)=>{
         return res.status(error.statusCode).json({
           success: error.success,
           statusCode:error.statusCode,
-          message: error.message,
+          message: error.message || "Error before running api",
           errors: error.errors,
         });
       }

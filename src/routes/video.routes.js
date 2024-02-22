@@ -8,7 +8,7 @@ const router = Router()
 
 
 router.route("/")
-    .get(verifyJWT,getAllUserVideos)
+    .get(verifyJWT, getAllUserVideos)
     .post(verifyJWT,
         upload.fields(
             [
@@ -24,12 +24,13 @@ router.route("/")
         ),
         publishVideo
     )
-router.route("/:videoId")
-    .get(verifyJWT,getVideoById)
-    .patch(verifyJWT,upload.single("thumbnail"), updateVideo)
-    .delete(verifyJWT,deleteVideo)
+router.route("/search-videos").get(verifyJWT, getUserSearchedVideos);
 
-router.route("/toggle/publish/:videoId").patch(verifyJWT,togglePublishStatus);
-router.route("/search-videos").get(verifyJWT,getUserSearchedVideos);
+router.route("/:videoId")
+    .get(verifyJWT, getVideoById)
+    .patch(verifyJWT, upload.single("thumbnail"), updateVideo)
+    .delete(verifyJWT, deleteVideo)
+
+router.route("/toggle/publish/:videoId").patch(verifyJWT, togglePublishStatus);
 
 export default router
