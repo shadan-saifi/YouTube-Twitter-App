@@ -133,7 +133,8 @@ const getSearchedVideos = asyncHandler(async (req, res) => {
 })
 
 const getAllUserVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, sortBy, sortType, username } = req.query
+    const { page = 1, limit = 10, sortBy, sortType, isPublished, username } = req.query
+
     if (!username) {
         throw new ApiError(400, "Username is missing")
     }
@@ -147,12 +148,9 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
     const result = await Video.aggregate([
         {
             $match: {
-                owner: new mongoose.Types.ObjectId(user?._id)
-            }
-        },
-        {
-            $sort: {
-                [sortBy]: sortType === 'asc' ? 1 : -1
+                owner: new mongoose.Types.ObjectId(user?._id),
+                isPublished: isPublished === "true" ? true : false
+
             }
         },
         {
@@ -180,15 +178,16 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
                 videos: [
                     { $skip: (Page - 1) * Limit },
                     { $limit: Limit },
+                    {
+                        $sort: { [sortBy]: sortType === "asc" ? 1 : -1 }
+                    }
                 ],
                 totalVideos: [
                     { $count: "count" }
                 ]
             }
-        }
-
+        },
     ])
-
 
     try {
         const videos = result[0].videos;
@@ -207,7 +206,7 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
 
 const getUserSearchedVideos = asyncHandler(async (req, res) => {
 
-    const { page = 1, limit = 10, sortBy, sortType, username, query } = req.query
+    const { page = 1, limit = 10, sortBy, sortType, username, isPublished, query } = req.query
 
     if (!username) {
         throw new ApiError(400, "Username is missing")
@@ -222,7 +221,6 @@ const getUserSearchedVideos = asyncHandler(async (req, res) => {
         throw new ApiError(400, "user not found")
     }
 
-    console.log("user", user);
     const Page = parseInt(page);
     const Limit = parseInt(limit);
 
@@ -263,7 +261,8 @@ const getUserSearchedVideos = asyncHandler(async (req, res) => {
         },
         {
             $match: {
-                owner: new mongoose.Types.ObjectId(user?._id)
+                owner: new mongoose.Types.ObjectId(user?._id),
+                isPublished: isPublished === "true" ? true : false
             }
         },
         {
@@ -291,18 +290,13 @@ const getUserSearchedVideos = asyncHandler(async (req, res) => {
                 _id: 1,
                 title: 1,
                 description: 1,
-                duration:1,
-                views:1,
-                createdAt:1,
+                duration: 1,
+                views: 1,
+                createdAt: 1,
                 ownerOfVideo: 1,
+                isPublished: 1,
                 "thumbnail.url": 1,
                 score: { $meta: "searchScore" }
-            }
-        },
-        {
-            $sort: {
-                score: -1,
-                [sortBy]: sortType === 'asc' ? 1 : -1
             }
         },
         {
@@ -310,6 +304,12 @@ const getUserSearchedVideos = asyncHandler(async (req, res) => {
                 videos: [
                     { $skip: (Page - 1) * Limit },
                     { $limit: Limit },
+                    {
+                        $sort: {
+                            score: -1,
+                            [sortBy]: sortType === 'asc' ? 1 : -1
+                        }
+                    }
                 ],
                 totalVideos: [
                     { $count: "count" }
@@ -318,7 +318,6 @@ const getUserSearchedVideos = asyncHandler(async (req, res) => {
         }
 
     ])
-    console.log("allvideos", result);
     try {
         const videos = result[0].videos;
         const videosOnPage = videos.length
@@ -352,14 +351,6 @@ const getVideoById = asyncHandler(async (req, res) => {
             $match: {
                 _id: new mongoose.Types.ObjectId(videoId)
             },
-        },
-        {
-            $lookup: {
-                from: "videos",
-                localField: "_id",
-                foreignField: "_id",
-                as: "video"
-            }
         },
         {
             $lookup: {
@@ -421,24 +412,23 @@ const getVideoById = asyncHandler(async (req, res) => {
                         else: false
                     }
                 },
-                video: { $first: "$video" }
 
             }
         },
         {
             $project: {
-                video: 1,
-                owner: 1, subscribersCount: 1, likesCount: 1, commentsCount: 1, isSubscribed: 1, comments: 1
+              
+                subscribers:0, likes:0
             }
         }
 
     ])
     console.log("video Details:", video);
-    if (!video) {
+    if (!video.length) {
         throw new ApiError(404, "video not found");
     }
 
-    return res.status(200).json(new ApiResponse(200, video, "video fetched succesfully"))
+    return res.status(200).json(new ApiResponse(200, video[0], "video fetched succesfully"))
 
 })
 
