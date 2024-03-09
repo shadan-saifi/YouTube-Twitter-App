@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { addComment, deleteComment, getVideoComments, updateComment } from "../controllers/comment.controller.js";
+import {  addTweetComment, addVideoComment,  addreply,  deleteCommentAndReply, getAllReplies, getTweetComments, getVideoComments,  updateCommentAndreply } from "../controllers/comment.controller.js";
 
 
 
@@ -8,10 +8,11 @@ const router=Router()
 
 router.use(verifyJWT)
 
-router.route("/:videoId").post(addComment).get(getVideoComments)
+router.route("/v/:videoId").post(addVideoComment).get(getVideoComments)
+router.route("/t/:tweetId").post(addTweetComment).get(getTweetComments)
 
-router.route("/:commentId").patch(updateComment).delete(deleteComment)
-
+router.route("/c/:commentId").patch(updateCommentAndreply).delete(deleteCommentAndReply)
+router.route("/r/:commentId").post(addreply).get(getAllReplies)
 
 
 
