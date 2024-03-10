@@ -1,8 +1,14 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import connectDB from './db/index.js'
 
 const app = express()
+
+app.use((req, res, next) => {
+    connectDB(); // Connect to the database
+    next(); // Call the next middleware or route handler
+});
 
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
@@ -52,6 +58,7 @@ import dashboardRouter from './routes/dashboard.routes.js'
 app.use("/api/v1/dashboard",dashboardRouter)
 
 import healthcheckRouter from './routes/healthcheck.routes.js'
+import connectDB from './db/index.js'
 app.use("/api/v1/healthcheck",healthcheckRouter)
 
 
