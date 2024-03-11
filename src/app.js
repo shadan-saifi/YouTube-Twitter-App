@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-import connectDB from './db/index.js'
+// import connectDB from './db/index.js'
 
 const app = express()
 
