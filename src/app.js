@@ -5,11 +5,6 @@ import connectDB from './db/index.js'
 
 const app = express()
 
-app.use((req, res, next) => {
-    connectDB(); // Connect to the database
-    next(); // Call the next middleware or route handler
-});
-
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true
@@ -28,9 +23,15 @@ app.use(express.static("public"))
 
 app.use(cookieParser())
 
-app.get("/",(req,res)=>{
-    res.send("<h1>Hello </h1>")
-})
+app.get("/", async (req, res) => {
+    try {
+        await connectDB(); // Connect to the database
+        res.send("<h1>Hello </h1>");
+    } catch (error) {
+        console.error("Error connecting to MongoDB:", error);
+        res.status(500).send("Internal Server Error");
+    }
+});
 
 //config routes
 import userRouter  from "./routes/user.routes.js"
