@@ -1,14 +1,14 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-// import connectDB from './db/index.js'
+import connectDB from './db/index.js'
 
 const app = express()
 
-// app.use((req, res, next) => {
-//     connectDB(); // Connect to the database
-//     next(); // Call the next middleware or route handler
-// });
+app.use((req, res, next) => {
+    connectDB(); // Connect to the database
+    next(); // Call the next middleware or route handler
+});
 
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
