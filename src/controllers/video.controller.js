@@ -68,37 +68,16 @@ const publishVideo = asyncHandler(async (req, res) => {
 
 })
 
-const getSearchedVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, /*userId*/ } = req.query
+const getAllVideos=asyncHandler(async(req,res)=>{
+    const { page = 1, limit = 10, sortBy, sortType} = req.query
 
-    // if (!isValidObjectId(userId)) {
-    //     throw new ApiError(401, "Invalid user ID")
-    // }
-    if (!query || !sortBy || !sortType) {
-        throw new ApiError(400, "all fields are required")
-    }
+    const Page = parseInt(page);
+    const Limit = parseInt(limit);
 
-    // const user =await User.findById(userId)
-    // if (!user) {
-    //     throw new ApiError(400, "user not found")
-    // }
-
-    const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-    };
-
-    await Video.createIndexes({ title: "text", description: "text" });
-    const allVideos = await Video.aggregate([
+    const result = await Video.aggregate([
         {
             $match: {
-                $text: { $search: query }
-            }
-        },
-        {
-            $sort: {
-                score: { $meta: "textScore" },
-                [sortBy]: sortType === 'asc' ? 1 : -1
+                isPublished: true
             }
         },
         {
@@ -106,7 +85,7 @@ const getSearchedVideos = asyncHandler(async (req, res) => {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
-                as: "owner",
+                as: "ownerOfVideo",
                 pipeline: [{
                     $project: {
                         fullname: 1,
@@ -115,20 +94,157 @@ const getSearchedVideos = asyncHandler(async (req, res) => {
                     }
                 }]
             },
-        }
-
+        },
+        {
+            $addFields: {
+                ownerOfVideo: { $first: "$ownerOfVideo" },
+            }
+        },
+        {
+            $facet: {
+                videos: [
+                    { $skip: (Page - 1) * Limit },
+                    { $limit: Limit },
+                    {
+                        $sort: { [sortBy]: sortType === "asc" ? 1 : -1 }
+                    }
+                ],
+                totalVideos: [
+                    { $count: "count" }
+                ]
+            }
+        },
     ])
 
     try {
-        const listVideos = await Video.aggregatePaginate(allVideos, options)
-        if (listVideos.docs.length === 0) {
-            return res.status(200).json(new ApiResponse(200, {}, "No videos to show"))
+        const videos = result[0].videos;
+        const videosOnPage = videos.length
+        const totalVideos = result[0].totalVideos[0]?.count || 0;
+
+        if (videos.length === 0) {
+            return res.status(200).json(new ApiResponse(200, {}, "No videos to show"));
         } else {
-            return res.status(200).json(new ApiResponse(200, listVideos, "videos list fetched successfully"))
+            return res.status(200).json(new ApiResponse(200, { videos, videosOnPage, totalVideos }, "Videos list fetched successfully"));
+        }
+    } catch (error) {
+        throw new ApiError(400, error.message || "Something went wrong");
+    }
+})
+const getSearchedVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, sortBy, sortType, query } = req.query
+
+    if (!query || !sortBy || !sortType) {
+        throw new ApiError(400, "all fields are required")
+    }
+
+    const Page = parseInt(page);
+    const Limit = parseInt(limit);
+
+    const result = await Video.aggregate([
+        {
+            '$search': {
+                "index": "title-description-search",
+                'compound': {
+                    'should': [
+                        {
+                            "autocomplete": {
+                                "query": query,
+                                "path": "title",
+                                "tokenOrder": "any",
+                                "fuzzy": {
+                                    "maxEdits": 1,
+                                    "prefixLength": 1,
+                                    "maxExpansions": 256
+                                }
+                            }
+                        },
+                        {
+                            "autocomplete": {
+                                "query": query,
+                                "path": "description",
+                                "tokenOrder": "any",
+                                "fuzzy": {
+                                    "maxEdits": 1,
+                                    "prefixLength": 1,
+                                    "maxExpansions": 256
+                                }
+                            }
+                        }
+                    ],
+                    'minimumShouldMatch': 1
+                }
+            }
+        },
+        {
+            $match: {
+                isPublished: true
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerOfVideo",
+                pipeline: [{
+                    $project: {
+                        fullname: 1,
+                        username: 1,
+                        avatar: 1
+                    }
+                }]
+            },
+        },
+        {
+            $addFields: {
+                ownerOfVideo: { $first: "$ownerOfVideo" },
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                title: 1,
+                description: 1,
+                duration: 1,
+                views: 1,
+                createdAt: 1,
+                ownerOfVideo: 1,
+                isPublished: 1,
+                "thumbnail.url": 1,
+                score: { $meta: "searchScore" }
+            }
+        },
+        {
+            $facet: {
+                videos: [
+                    { $skip: (Page - 1) * Limit },
+                    { $limit: Limit },
+                    {
+                        $sort: {
+                            score: -1,
+                            [sortBy]: sortType === 'asc' ? 1 : -1
+                        }
+                    }
+                ],
+                totalVideos: [
+                    { $count: "count" }
+                ]
+            }
         }
 
+    ])
+    try {
+        const videos = result[0].videos;
+        const videosOnPage = videos.length
+        const totalVideos = result[0].totalVideos[0]?.count || 0;
+
+        if (videos.length === 0) {
+            return res.status(200).json(new ApiResponse(200, {}, "Videos not found "));
+        } else {
+            return res.status(200).json(new ApiResponse(200, { videos, videosOnPage, totalVideos }, "Videos list fetched successfully"));
+        }
     } catch (error) {
-        throw new ApiError(400, error.message || "something went wrong with paginationn")
+        throw new ApiError(400, error.message || "Something went wrong");
     }
 })
 

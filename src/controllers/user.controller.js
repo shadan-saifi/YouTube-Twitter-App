@@ -112,7 +112,9 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true
+        secure: process.env.NODE_ENV === 'production' ? true : false,
+        sameSite: 'Lax',
+        path: '/', 
     }
 
     return res.status(200).cookie("accessToken", accessToken, options)
@@ -205,6 +207,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 })
 
 const getCurrentUser = asyncHandler(async (req, res) => {
+    console.log("user",req.user);
     return res.status(200).json(new ApiResponse(200, req.user, "Current user fetched successfully"))
 })
 
