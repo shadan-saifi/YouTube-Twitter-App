@@ -451,7 +451,6 @@ const getUserSearchedVideos = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    console.log("get video by id", videoId);
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid video id");
     }
@@ -539,7 +538,6 @@ const getVideoById = asyncHandler(async (req, res) => {
         }
 
     ])
-    console.log("video Details:", video);
     if (!video.length) {
         throw new ApiError(404, "video not found");
     }
@@ -661,4 +659,14 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, updatedVideo, "Publish status toggled successfully"));
 })
 
-export { publishVideo, getVideoById, updateVideo, deleteVideo, togglePublishStatus, getSearchedVideos, getAllUserVideos, getUserSearchedVideos }
+export {
+    getAllVideos, 
+    publishVideo, 
+    getVideoById, 
+    updateVideo, 
+    deleteVideo, 
+    togglePublishStatus, 
+    getSearchedVideos, 
+    getAllUserVideos, 
+    getUserSearchedVideos
+ }
