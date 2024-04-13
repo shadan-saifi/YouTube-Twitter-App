@@ -8,7 +8,7 @@ const router = Router()
 
 
 router.route("/")
-    .get(verifyJWT, getAllUserVideos)
+    .get(getAllUserVideos)
     .post(verifyJWT,
         upload.fields(
             [
@@ -26,10 +26,10 @@ router.route("/")
     )
 router.route("/all-videos").get(getAllVideos)
 router.route("/search-videos").get(getSearchedVideos)
-router.route("/user-search-videos").get(verifyJWT, getUserSearchedVideos);
+router.route("/user-search-videos").get(getUserSearchedVideos);
 
 router.route("/:videoId")
-    .get(verifyJWT, getVideoById)
+    .get(getVideoById)
     .patch(verifyJWT, upload.single("thumbnail"), updateVideo)
     .delete(verifyJWT, deleteVideo)
 
