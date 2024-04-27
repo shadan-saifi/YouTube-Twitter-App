@@ -8,33 +8,37 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 
 const publishVideo = asyncHandler(async (req, res) => {
-    const { title, description } = req.body;
-    if (!title || !description) {
+    const { title, description, isPublished } = req.body;
+    if (!title || !description || !isPublished) {
         throw new ApiError(401, "All fields are required")
     }
-
-    const videoFileLocalPath = req.files?.videoFile[0].path
+    const videoFileLocalPath = req.files?.videoFile?.[0]?.path
 
     if (!videoFileLocalPath) {
         throw new ApiError(400, "Video file is required")
     }
 
-    const thumbnailLocalPath = req.files?.thumbnail[0]?.path
+    const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path
     if (!thumbnailLocalPath) {
         throw new ApiError(400, "Thumbnail is required")
     }
 
     let videoFile = "";
-    if (req.files.videoFile[0].size <= 100 * 1024 * 1024) {
+    if (req.files.videoFile?.[0].size <= 50 * 1024 * 1024) {
         videoFile = await uploadOnCloudinary(videoFileLocalPath)
     } else {
-        throw new ApiError(400, "upload video less than or equal 100 MB")
+        throw new ApiError(400, "Upload video less than or equal 50 MB")
     }
     if (!videoFile) {
         throw new ApiError(400, "Error nwhile uploading video on cloudinary")
     }
-    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-
+    
+    let thumbnail=""
+     if (req.files.thumbnail?.[0].size <= 2 * 1024 * 1024) {
+        thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    } else {
+        throw new ApiError(400, "Upload thumbnail less than or equal 2 MB")
+    }
     if (!thumbnail) {
         throw new ApiError(400, "Error nwhile uploading thumbnail on cloudinary")
     }
@@ -58,6 +62,7 @@ const publishVideo = asyncHandler(async (req, res) => {
         description,
         duration: videoFile.duration,
         views: 0,
+        isPublished: isPublished === "true" ? true : false,
         owner: user._id
     })
 
