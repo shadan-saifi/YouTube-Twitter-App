@@ -12,7 +12,6 @@ import { Tweet } from "../models/tweet.model.js";
 const addVideoComment = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     const { content } = req.body
-    console.log("req.body:", req.body);
 
     const user = await User.findById(req.user?._id)
 
@@ -171,10 +170,10 @@ const getVideoComments = asyncHandler(async (req, res) => {
             }
         },
         {
-            $skip: parseInt(skip || 0)
+            $skip: parseInt(skip)
         },
         {
-            $limit: parseInt(limit || 10) // Default limit 10 comments per request
+            $limit: parseInt(limit) // comments per request
         }
     ]);
 

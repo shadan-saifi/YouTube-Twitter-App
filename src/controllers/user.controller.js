@@ -114,7 +114,7 @@ const loginUser = asyncHandler(async (req, res) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production' ? true : false,
         sameSite: 'Lax',
-        path: '/', 
+        path: '/',
     }
 
     return res.status(200).cookie("accessToken", accessToken, options)
@@ -234,7 +234,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 const updateUserAvatar = asyncHandler(async (req, res) => {
     const oldUser = await User.findById(req.user?._id)
     const publicId = await oldUser.avatar?.public_id
-    await deleteFromCloudinary(publicId,"image")
+    await deleteFromCloudinary(publicId, "image")
 
     const avatarLocalPath = req.file?.path
     if (!avatarLocalPath) {
@@ -262,18 +262,26 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const oldUser = await User.findById(req.user?._id)
-    const publicId = await oldUser.coverImage?.public_id
-    await deleteFromCloudinary(publicId,"image")
 
     const coverImageLocalPath = req.file?.path
     if (!coverImageLocalPath) {
         throw new ApiError(400, "CoverImage file is missing")
     }
+    const oldUser = await User.findById(req.user?._id)
+    const publicId = await oldUser.coverImage?.public_id
+    const deleteResponse = await deleteFromCloudinary(publicId, "image")
 
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-    if (!coverImage.url) {
-        throw new ApiError(400, "Error while uploading cover image")
+    let coverImage = null
+    if (deleteResponse) {
+        coverImage = await uploadOnCloudinary(coverImageLocalPath)
+        if (!coverImage.url) {
+            throw new ApiError(400, "Error while uploading cover image")
+        }
+    } else {
+        coverImage = await uploadOnCloudinary(coverImageLocalPath)
+        if (!coverImage.url) {
+            throw new ApiError(400, "Error while uploading cover image")
+        }
     }
 
     const user = await User.findByIdAndUpdate(req.user?._id,
@@ -291,6 +299,35 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     return res.status(200)
         .json(new ApiResponse(200, user, "Cover image uploaded successfully"))
 })
+
+const deleteUserCoverImage = asyncHandler(async (req, res) => {
+    const oldUser = await User.findById(req.user?._id);
+    const publicId = oldUser.coverImage?.public_id;
+
+    let deleteResponse = null; // Initialize as null as empty string will always be truthy
+
+    if (publicId) {
+        deleteResponse = await deleteFromCloudinary(publicId, "image");
+    }
+
+    if (deleteResponse) {
+        // Update the user document to remove the coverImage field
+        const user = await User.findByIdAndUpdate(
+            req.user?._id,
+            { $unset: { coverImage: "" } }, // Remove the coverImage field
+            { new: true, select: "-password -refreshToken" } // Return the updated user document
+        );
+
+        if (user) {
+            return res.status(200).json(new ApiResponse(200, user, "Cover image deleted successfully"));
+        } else {
+            throw new ApiError(400, "Error while updating user document");
+        }
+    } else {
+        throw new ApiError(400, "Error while deleting cover image from Cloudinary");
+    }
+});
+
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params;
@@ -357,7 +394,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
     // console.log('Intermediate Result:', channel);
 
-    if (channel.length===0) {
+    if (channel.length === 0) {
         throw new ApiError(400, "channel does not exists")
     }
     return res.status(200).json(new ApiResponse(200, channel[0], "User Channel fetched successfully"))
@@ -419,6 +456,7 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    deleteUserCoverImage,
     getUserChannelProfile,
     getWatchHistory
 }

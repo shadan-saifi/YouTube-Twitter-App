@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
-    "vercel-build":"echo hello"
+    "vercel-build": "echo hello"
   },
   "keywords": [
     "javascript",
@@ -29,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
     "mongoose-aggregate-paginate-v2": "^1.0.7",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.3"
   }
 }
