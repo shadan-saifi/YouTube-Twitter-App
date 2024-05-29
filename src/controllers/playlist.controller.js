@@ -8,7 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 
 const createPlaylist = asyncHandler(async (req, res) => {
-    const { name, description } = req.body
+    const { name, description,isPublished } = req.body
     const { videoId } = req.params
 
     if ([name, description].some((field) => field?.trim() === "")) {
@@ -21,11 +21,12 @@ const createPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found")
     }
 
-
+   
     let playlistData = {
         name: name,
         description: description,
         owner: user?._id,
+        isPublished:isPublished === "true" ? true : false,
     };
 
     if (videoId && isValidObjectId(videoId)) {
@@ -121,7 +122,7 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 
     } catch (error) {
 
-        throw new ApiError(401, error.message)
+        throw new ApiError(401, error.message || "Error occurred while removing video from playlist")
     }
 
 
@@ -153,7 +154,7 @@ const deletePlaylist = asyncHandler(async (req, res) => {
 
 const updatePlaylist = asyncHandler(async (req, res) => {
     const { playlistId } = req.params
-    const { name, description } = req.body
+    const { name, description, isPublished } = req.body
 
     if (!name || !description) {
         throw new ApiError(400, "All fields are required")
@@ -167,7 +168,8 @@ const updatePlaylist = asyncHandler(async (req, res) => {
             {
                 $set: {
                     name,
-                    description
+                    description,
+                    isPublished:isPublished === "true" ? true : false
                 }
             },
             { new: true }
@@ -280,6 +282,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 
 const getUserPlaylists = asyncHandler(async (req, res) => {
     const { username } = req.params
+    
 
     if (!username) {
         throw new ApiError(400, "Username is missing")

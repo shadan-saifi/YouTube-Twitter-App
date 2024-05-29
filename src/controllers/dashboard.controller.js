@@ -101,7 +101,7 @@ const getChannelVideos = asyncHandler(async (req, res) => {
                             }
                         }
                     ],
-                    'minimumShouldMatch': 1
+                    'minimumShouldMatch': 1 
                 }
             }
         });

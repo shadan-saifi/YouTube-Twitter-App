@@ -91,7 +91,7 @@ const updateCommentAndreply = asyncHandler(async (req, res) => {
     }
 
     if (!content) {
-        throw new ApiError(402, "Enter comment")
+        throw new ApiError(402, "Please enter comment")
     }
 
     const updatedComment = await Comment.findByIdAndUpdate(commentId, {

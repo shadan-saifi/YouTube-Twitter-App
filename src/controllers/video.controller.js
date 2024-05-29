@@ -9,6 +9,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const publishVideo = asyncHandler(async (req, res) => {
     const { title, description, isPublished } = req.body;
+
+    console.log("req.body:",req.body);
     if (!title || !description || !isPublished) {
         throw new ApiError(401, "All fields are required")
     }
@@ -314,7 +316,7 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
         const videos = result[0].videos;
         const videosOnPage = videos.length
         const totalVideos = result[0].totalVideos[0]?.count || 0;
-
+        console.log("videos:",videos);
         if (videos.length === 0) {
             return res.status(200).json(new ApiResponse(200, {}, "User does not have videos"));
         } else {

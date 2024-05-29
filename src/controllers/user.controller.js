@@ -8,7 +8,6 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 
-
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
         const user = await User.findById(userId)
@@ -331,8 +330,19 @@ const deleteUserCoverImage = asyncHandler(async (req, res) => {
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params;
-
-    // console.log('Username:', username);
+    let user
+    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+    if (token) {
+        if (!token) {
+            throw new ApiError(401, "Unauthorized Request")
+        }
+        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+        user = await User.findById(decodedToken?._id).select("-password -refreshToken")
+        if (!user) {
+            throw new ApiError(401, "Invalid Access Token")
+        }
+    }
+   
 
     if (!username) {
         throw new ApiError(400, "Username is missing")
@@ -367,15 +377,27 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 channelSubscribedToCount: {
                     $size: "$subscribedTo"
                 },
+                subscribersList: {
+                    $map: {
+                        input: "$subscribers",
+                        as: "subs",
+                        in: "$$subs.subscriber"
+                    }
+                },
                 isSubscribed: {
                     $cond: {
-                        if: {
-                            $in: [req.user?._id, "$subscribers.subscriber"]
-                        },
+                        if: { $in: [user?._id, "$subscribers.subscriber"] },
                         then: true,
                         else: false
                     }
                 }
+                // isSubscribed: {
+                //     $and: [
+                //         { $ne: [user, null] },
+                //         { $ne: [user, undefined] },
+                //         { $in: [user?._id, ["$subscribersList"]] }
+                //     ]
+                // }
             }
         },
         {
@@ -387,7 +409,10 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 coverImage: 1,
                 isSubscribed: 1,
                 subscribersCount: 1,
-                channelSubscribedToCount: 1
+                channelSubscribedToCount: 1,
+                subscribers: 1,
+                subscribedTo: 1,
+                subscribersList: 1
             }
         }
     ])
