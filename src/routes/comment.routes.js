@@ -6,13 +6,12 @@ import {  addTweetComment, addVideoComment,  addreply,  deleteCommentAndReply, g
 
 const router=Router()
 
-router.use(verifyJWT)
 
-router.route("/v/:videoId").post(addVideoComment).get(getVideoComments)
-router.route("/t/:tweetId").post(addTweetComment).get(getTweetComments)
+router.route("/v/:videoId").post(verifyJWT,addVideoComment).get(getVideoComments)
+router.route("/t/:tweetId").post(verifyJWT,addTweetComment).get(getTweetComments)
 
-router.route("/c/:commentId").patch(updateCommentAndreply).delete(deleteCommentAndReply)
-router.route("/r/:commentId").post(addreply).get(getAllReplies)
+router.route("/c/:commentId").patch(verifyJWT,updateCommentAndreply).delete(verifyJWT,deleteCommentAndReply)
+router.route("/r/:commentId").post(verifyJWT,addreply).get(getAllReplies)
 
 
 

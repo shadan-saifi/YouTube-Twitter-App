@@ -16,19 +16,19 @@ import {
 
 const router = Router()
 
-router.use(verifyJWT, upload.none())
+router.use(upload.none())
 
-router.route("/create-playlist/:videoId?").post(createPlaylist)
+router.route("/create-playlist/:videoId?").post(verifyJWT,createPlaylist)
 
 router.route("/:playlistId")
-    .patch(updatePlaylist)
-    .delete(deletePlaylist)
+    .patch(verifyJWT,updatePlaylist)
+    .delete(verifyJWT,deletePlaylist)
     .get(getPlaylistById)
 
-router.route("/add/:playlistId/:videoId").patch(addVideoToPlaylist)
-router.route("/remove/:playlistId/:videoId").patch(removeVideoFromPlaylist)
+router.route("/add/:playlistId/:videoId").patch(verifyJWT,addVideoToPlaylist)
+router.route("/remove/:playlistId/:videoId").patch(verifyJWT,removeVideoFromPlaylist)
 
-router.route("/user/:userId").get(getUserPlaylists)
+router.route("/user/:username").get(getUserPlaylists)
 
 
 

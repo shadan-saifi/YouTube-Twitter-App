@@ -8,33 +8,39 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 
 const publishVideo = asyncHandler(async (req, res) => {
-    const { title, description } = req.body;
-    if (!title || !description) {
+    const { title, description, isPublished } = req.body;
+
+    console.log("req.body:",req.body);
+    if (!title || !description || !isPublished) {
         throw new ApiError(401, "All fields are required")
     }
-
-    const videoFileLocalPath = req.files?.videoFile[0].path
+    const videoFileLocalPath = req.files?.videoFile?.[0]?.path
 
     if (!videoFileLocalPath) {
         throw new ApiError(400, "Video file is required")
     }
 
-    const thumbnailLocalPath = req.files?.thumbnail[0]?.path
+    const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path
     if (!thumbnailLocalPath) {
         throw new ApiError(400, "Thumbnail is required")
     }
 
     let videoFile = "";
-    if (req.files.videoFile[0].size <= 100 * 1024 * 1024) {
+    if (req.files.videoFile?.[0].size <= 50 * 1024 * 1024) {
         videoFile = await uploadOnCloudinary(videoFileLocalPath)
     } else {
-        throw new ApiError(400, "upload video less than or equal 100 MB")
+        throw new ApiError(400, "Upload video less than or equal 50 MB")
     }
     if (!videoFile) {
         throw new ApiError(400, "Error nwhile uploading video on cloudinary")
     }
-    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-
+    
+    let thumbnail=""
+     if (req.files.thumbnail?.[0].size <= 2 * 1024 * 1024) {
+        thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    } else {
+        throw new ApiError(400, "Upload thumbnail less than or equal 2 MB")
+    }
     if (!thumbnail) {
         throw new ApiError(400, "Error nwhile uploading thumbnail on cloudinary")
     }
@@ -58,6 +64,7 @@ const publishVideo = asyncHandler(async (req, res) => {
         description,
         duration: videoFile.duration,
         views: 0,
+        isPublished: isPublished === "true" ? true : false,
         owner: user._id
     })
 
@@ -68,37 +75,16 @@ const publishVideo = asyncHandler(async (req, res) => {
 
 })
 
-const getSearchedVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, /*userId*/ } = req.query
+const getAllVideos=asyncHandler(async(req,res)=>{
+    const { page = 1, limit = 10, sortBy, sortType} = req.query
 
-    // if (!isValidObjectId(userId)) {
-    //     throw new ApiError(401, "Invalid user ID")
-    // }
-    if (!query || !sortBy || !sortType) {
-        throw new ApiError(400, "all fields are required")
-    }
+    const Page = parseInt(page);
+    const Limit = parseInt(limit);
 
-    // const user =await User.findById(userId)
-    // if (!user) {
-    //     throw new ApiError(400, "user not found")
-    // }
-
-    const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-    };
-
-    await Video.createIndexes({ title: "text", description: "text" });
-    const allVideos = await Video.aggregate([
+    const result = await Video.aggregate([
         {
             $match: {
-                $text: { $search: query }
-            }
-        },
-        {
-            $sort: {
-                score: { $meta: "textScore" },
-                [sortBy]: sortType === 'asc' ? 1 : -1
+                isPublished: true
             }
         },
         {
@@ -106,7 +92,7 @@ const getSearchedVideos = asyncHandler(async (req, res) => {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
-                as: "owner",
+                as: "ownerOfVideo",
                 pipeline: [{
                     $project: {
                         fullname: 1,
@@ -115,20 +101,157 @@ const getSearchedVideos = asyncHandler(async (req, res) => {
                     }
                 }]
             },
-        }
-
+        },
+        {
+            $addFields: {
+                ownerOfVideo: { $first: "$ownerOfVideo" },
+            }
+        },
+        {
+            $facet: {
+                videos: [
+                    { $skip: (Page - 1) * Limit },
+                    { $limit: Limit },
+                    {
+                        $sort: { [sortBy]: sortType === "asc" ? 1 : -1 }
+                    }
+                ],
+                totalVideos: [
+                    { $count: "count" }
+                ]
+            }
+        },
     ])
 
     try {
-        const listVideos = await Video.aggregatePaginate(allVideos, options)
-        if (listVideos.docs.length === 0) {
-            return res.status(200).json(new ApiResponse(200, {}, "No videos to show"))
+        const videos = result[0].videos;
+        const videosOnPage = videos.length
+        const totalVideos = result[0].totalVideos[0]?.count || 0;
+
+        if (videos.length === 0) {
+            return res.status(200).json(new ApiResponse(200, {}, "No videos to show"));
         } else {
-            return res.status(200).json(new ApiResponse(200, listVideos, "videos list fetched successfully"))
+            return res.status(200).json(new ApiResponse(200, { videos, videosOnPage, totalVideos }, "Videos list fetched successfully"));
+        }
+    } catch (error) {
+        throw new ApiError(400, error.message || "Something went wrong");
+    }
+})
+const getSearchedVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, sortBy, sortType, query } = req.query
+
+    if (!query || !sortBy || !sortType) {
+        throw new ApiError(400, "all fields are required")
+    }
+
+    const Page = parseInt(page);
+    const Limit = parseInt(limit);
+
+    const result = await Video.aggregate([
+        {
+            '$search': {
+                "index": "title-description-search",
+                'compound': {
+                    'should': [
+                        {
+                            "autocomplete": {
+                                "query": query,
+                                "path": "title",
+                                "tokenOrder": "any",
+                                "fuzzy": {
+                                    "maxEdits": 1,
+                                    "prefixLength": 1,
+                                    "maxExpansions": 256
+                                }
+                            }
+                        },
+                        {
+                            "autocomplete": {
+                                "query": query,
+                                "path": "description",
+                                "tokenOrder": "any",
+                                "fuzzy": {
+                                    "maxEdits": 1,
+                                    "prefixLength": 1,
+                                    "maxExpansions": 256
+                                }
+                            }
+                        }
+                    ],
+                    'minimumShouldMatch': 1
+                }
+            }
+        },
+        {
+            $match: {
+                isPublished: true
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerOfVideo",
+                pipeline: [{
+                    $project: {
+                        fullname: 1,
+                        username: 1,
+                        avatar: 1
+                    }
+                }]
+            },
+        },
+        {
+            $addFields: {
+                ownerOfVideo: { $first: "$ownerOfVideo" },
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                title: 1,
+                description: 1,
+                duration: 1,
+                views: 1,
+                createdAt: 1,
+                ownerOfVideo: 1,
+                isPublished: 1,
+                "thumbnail.url": 1,
+                score: { $meta: "searchScore" }
+            }
+        },
+        {
+            $facet: {
+                videos: [
+                    { $skip: (Page - 1) * Limit },
+                    { $limit: Limit },
+                    {
+                        $sort: {
+                            score: -1,
+                            [sortBy]: sortType === 'asc' ? 1 : -1
+                        }
+                    }
+                ],
+                totalVideos: [
+                    { $count: "count" }
+                ]
+            }
         }
 
+    ])
+    try {
+        const videos = result[0].videos;
+        const videosOnPage = videos.length
+        const totalVideos = result[0].totalVideos[0]?.count || 0;
+
+        if (videos.length === 0) {
+            return res.status(200).json(new ApiResponse(200, {}, "Videos not found "));
+        } else {
+            return res.status(200).json(new ApiResponse(200, { videos, videosOnPage, totalVideos }, "Videos list fetched successfully"));
+        }
     } catch (error) {
-        throw new ApiError(400, error.message || "something went wrong with paginationn")
+        throw new ApiError(400, error.message || "Something went wrong");
     }
 })
 
@@ -193,7 +316,7 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
         const videos = result[0].videos;
         const videosOnPage = videos.length
         const totalVideos = result[0].totalVideos[0]?.count || 0;
-
+        console.log("videos:",videos);
         if (videos.length === 0) {
             return res.status(200).json(new ApiResponse(200, {}, "User does not have videos"));
         } else {
@@ -335,7 +458,6 @@ const getUserSearchedVideos = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    console.log("get video by id", videoId);
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid video id");
     }
@@ -423,7 +545,6 @@ const getVideoById = asyncHandler(async (req, res) => {
         }
 
     ])
-    console.log("video Details:", video);
     if (!video.length) {
         throw new ApiError(404, "video not found");
     }
@@ -545,4 +666,14 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, updatedVideo, "Publish status toggled successfully"));
 })
 
-export { publishVideo, getVideoById, updateVideo, deleteVideo, togglePublishStatus, getSearchedVideos, getAllUserVideos, getUserSearchedVideos }
+export {
+    getAllVideos, 
+    publishVideo, 
+    getVideoById, 
+    updateVideo, 
+    deleteVideo, 
+    togglePublishStatus, 
+    getSearchedVideos, 
+    getAllUserVideos, 
+    getUserSearchedVideos
+ }

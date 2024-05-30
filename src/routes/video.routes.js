@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { deleteVideo, getAllUserVideos, getUserSearchedVideos, getVideoById, publishVideo, togglePublishStatus, updateVideo } from "../controllers/video.controller.js";
+import { deleteVideo, getAllUserVideos, getAllVideos, getSearchedVideos, getUserSearchedVideos, getVideoById, publishVideo, togglePublishStatus, updateVideo } from "../controllers/video.controller.js";
 
 
 const router = Router()
 
 
 router.route("/")
-    .get(verifyJWT, getAllUserVideos)
+    .get(getAllUserVideos)
     .post(verifyJWT,
         upload.fields(
             [
@@ -24,10 +24,12 @@ router.route("/")
         ),
         publishVideo
     )
-router.route("/search-videos").get(verifyJWT, getUserSearchedVideos);
+router.route("/all-videos").get(getAllVideos)
+router.route("/search-videos").get(getSearchedVideos)
+router.route("/user-search-videos").get(getUserSearchedVideos);
 
 router.route("/:videoId")
-    .get(verifyJWT, getVideoById)
+    .get(getVideoById)
     .patch(verifyJWT, upload.single("thumbnail"), updateVideo)
     .delete(verifyJWT, deleteVideo)
 

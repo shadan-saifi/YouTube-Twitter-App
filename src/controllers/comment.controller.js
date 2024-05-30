@@ -12,7 +12,6 @@ import { Tweet } from "../models/tweet.model.js";
 const addVideoComment = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     const { content } = req.body
-    console.log("req.body:", req.body);
 
     const user = await User.findById(req.user?._id)
 
@@ -92,7 +91,7 @@ const updateCommentAndreply = asyncHandler(async (req, res) => {
     }
 
     if (!content) {
-        throw new ApiError(402, "Enter comment")
+        throw new ApiError(402, "Please enter comment")
     }
 
     const updatedComment = await Comment.findByIdAndUpdate(commentId, {
@@ -126,23 +125,20 @@ const deleteCommentAndReply = asyncHandler(async (req, res) => {
 })
  
 const getVideoComments = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
-    const { page = 1, limit = 10 } = req.query
+    const { videoId } = req.params;
+    const { skip, limit } = req.query;
 
     if (!isValidObjectId(videoId)) {
-        throw new ApiError(402, "Invalid video Id")
+        throw new ApiError(402, "Invalid video Id");
     }
 
     const isVideoExists = await Video.findById(videoId);
 
     if (!isVideoExists) {
-        throw new ApiError(404, "video not found");
+        throw new ApiError(404, "Video not found");
     }
 
-    const Page = parseInt(page);
-    const Limit = parseInt(limit);
-
-    const result = await Comment.aggregate([
+    const comments = await Comment.aggregate([
         {
             $match: {
                 video: new mongoose.Types.ObjectId(videoId)
@@ -169,38 +165,23 @@ const getVideoComments = asyncHandler(async (req, res) => {
             }
         },
         {
-            $facet: {
-                comments: [
-                    { $skip: (Page - 1) * Limit },
-                    { $limit: Limit },
-                    {
-                        $sort: {
-                            createdAt: -1
-                        }
-                    }
-                ],
-                totalComments: [
-                    { $count: "count" }
-                ]
+            $sort: {
+                createdAt: -1
             }
         },
-
-    ])
-
-    try {
-        const comments = result[0].comments;
-        const commentsOnPage = comments.length
-        const totalComments = result[0].totalComments[0]?.count || 0;
-
-        if (comments.length === 0) {
-            return res.status(200).json(new ApiResponse(200, {}, "User does not have comments"));
-        } else {
-            return res.status(200).json(new ApiResponse(200, { comments, commentsOnPage, totalComments }, "Comments fetched successfully"));
+        {
+            $skip: parseInt(skip)
+        },
+        {
+            $limit: parseInt(limit) // comments per request
         }
-    } catch (error) {
-        throw new ApiError(400, error.message || "Something went wrong");
-    }
-})
+    ]);
+
+   
+        return res.status(200).json(new ApiResponse(200,  comments , "Comments fetched successfully"));
+    
+});
+
 
 const getTweetComments = asyncHandler(async (req, res) => {
     const { tweetId } = req.params

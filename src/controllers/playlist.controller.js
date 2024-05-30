@@ -8,7 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 
 const createPlaylist = asyncHandler(async (req, res) => {
-    const { name, description } = req.body
+    const { name, description,isPublished } = req.body
     const { videoId } = req.params
 
     if ([name, description].some((field) => field?.trim() === "")) {
@@ -21,11 +21,12 @@ const createPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found")
     }
 
-
+   
     let playlistData = {
-        name:name,
-        description:description,
+        name: name,
+        description: description,
         owner: user?._id,
+        isPublished:isPublished === "true" ? true : false,
     };
 
     if (videoId && isValidObjectId(videoId)) {
@@ -38,7 +39,7 @@ const createPlaylist = asyncHandler(async (req, res) => {
         }
     }
 
-    const playlist = await Playlist.create(playlistData )
+    const playlist = await Playlist.create(playlistData)
 
     if (!playlist) {
         throw new ApiError(404, "Error occurred while creating playlist")
@@ -121,7 +122,7 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 
     } catch (error) {
 
-        throw new ApiError(401, error.message)
+        throw new ApiError(401, error.message || "Error occurred while removing video from playlist")
     }
 
 
@@ -153,7 +154,7 @@ const deletePlaylist = asyncHandler(async (req, res) => {
 
 const updatePlaylist = asyncHandler(async (req, res) => {
     const { playlistId } = req.params
-    const { name, description } = req.body
+    const { name, description, isPublished } = req.body
 
     if (!name || !description) {
         throw new ApiError(400, "All fields are required")
@@ -167,7 +168,8 @@ const updatePlaylist = asyncHandler(async (req, res) => {
             {
                 $set: {
                     name,
-                    description
+                    description,
+                    isPublished:isPublished === "true" ? true : false
                 }
             },
             { new: true }
@@ -244,7 +246,23 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                     totalVideos: { $size: "$allVideos" }
                 }
             },
-           
+            {
+                $addFields: {
+                    totalViews: {
+                        $sum: {
+                            eachVideoViews: {
+                                $map: {
+                                    input: "$allVideos",
+                                    as: "eachVideo",
+                                    in: "$$eachVideo.views"
+                                },
+                            }
+                        }
+                    }
+
+                }
+            },
+
         ])
         if (!playlist || playlist.length === 0) {
             throw new ApiError(404, "Playlist not found");
@@ -263,22 +281,22 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 })
 
 const getUserPlaylists = asyncHandler(async (req, res) => {
-    const { userId } = req.params
+    const { username } = req.params
+    
 
-    if (!isValidObjectId(userId)) {
-        throw new ApiError(400, "Invalid video id");
+    if (!username) {
+        throw new ApiError(400, "Username is missing")
     }
-    const user = await User.findById(req.user?._id)
-
+    const user = await User.findOne({ username: username });
     if (!user) {
-        throw new ApiError(404, "User not found")
+        throw new ApiError(400, "user not found")
     }
 
     try {
-        const allPlaylists = await Playlist.aggregate([
+        const playlists = await Playlist.aggregate([
             {
                 $match: {
-                    owner: new mongoose.Types.ObjectId(userId)
+                    owner: new mongoose.Types.ObjectId(user._id)
                 }
             },
             {
@@ -310,12 +328,12 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
                 }
             }
         ])
-        if (!allPlaylists) {
-            res.status(200).json(new ApiResponse(200, allPlaylists, "User do not hane any playlists to show"))
+        const totalPlaylists = playlists.length
+        if (totalPlaylists === 0) {
+            res.status(200).json(new ApiResponse(200, playlists, "User do not hane any playlists to show"))
         }
 
-       
-        res.status(200).json(new ApiResponse(200, allPlaylists, "All Playlists fetched successfully"))
+        res.status(200).json(new ApiResponse(200, { playlists, totalPlaylists }, "All Playlists fetched successfully"))
     } catch (error) {
         throw new ApiError(401, error.message)
     }

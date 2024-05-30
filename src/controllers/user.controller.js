@@ -8,7 +8,6 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 
-
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
         const user = await User.findById(userId)
@@ -112,7 +111,9 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true
+        secure: process.env.NODE_ENV === 'production' ? true : false,
+        sameSite: 'Lax',
+        path: '/',
     }
 
     return res.status(200).cookie("accessToken", accessToken, options)
@@ -232,7 +233,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 const updateUserAvatar = asyncHandler(async (req, res) => {
     const oldUser = await User.findById(req.user?._id)
     const publicId = await oldUser.avatar?.public_id
-    await deleteFromCloudinary(publicId,"image")
+    await deleteFromCloudinary(publicId, "image")
 
     const avatarLocalPath = req.file?.path
     if (!avatarLocalPath) {
@@ -260,18 +261,26 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const oldUser = await User.findById(req.user?._id)
-    const publicId = await oldUser.coverImage?.public_id
-    await deleteFromCloudinary(publicId,"image")
 
     const coverImageLocalPath = req.file?.path
     if (!coverImageLocalPath) {
         throw new ApiError(400, "CoverImage file is missing")
     }
+    const oldUser = await User.findById(req.user?._id)
+    const publicId = await oldUser.coverImage?.public_id
+    const deleteResponse = await deleteFromCloudinary(publicId, "image")
 
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-    if (!coverImage.url) {
-        throw new ApiError(400, "Error while uploading cover image")
+    let coverImage = null
+    if (deleteResponse) {
+        coverImage = await uploadOnCloudinary(coverImageLocalPath)
+        if (!coverImage.url) {
+            throw new ApiError(400, "Error while uploading cover image")
+        }
+    } else {
+        coverImage = await uploadOnCloudinary(coverImageLocalPath)
+        if (!coverImage.url) {
+            throw new ApiError(400, "Error while uploading cover image")
+        }
     }
 
     const user = await User.findByIdAndUpdate(req.user?._id,
@@ -290,10 +299,50 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "Cover image uploaded successfully"))
 })
 
+const deleteUserCoverImage = asyncHandler(async (req, res) => {
+    const oldUser = await User.findById(req.user?._id);
+    const publicId = oldUser.coverImage?.public_id;
+
+    let deleteResponse = null; // Initialize as null as empty string will always be truthy
+
+    if (publicId) {
+        deleteResponse = await deleteFromCloudinary(publicId, "image");
+    }
+
+    if (deleteResponse) {
+        // Update the user document to remove the coverImage field
+        const user = await User.findByIdAndUpdate(
+            req.user?._id,
+            { $unset: { coverImage: "" } }, // Remove the coverImage field
+            { new: true, select: "-password -refreshToken" } // Return the updated user document
+        );
+
+        if (user) {
+            return res.status(200).json(new ApiResponse(200, user, "Cover image deleted successfully"));
+        } else {
+            throw new ApiError(400, "Error while updating user document");
+        }
+    } else {
+        throw new ApiError(400, "Error while deleting cover image from Cloudinary");
+    }
+});
+
+
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params;
-
-    // console.log('Username:', username);
+    let user
+    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+    if (token) {
+        if (!token) {
+            throw new ApiError(401, "Unauthorized Request")
+        }
+        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+        user = await User.findById(decodedToken?._id).select("-password -refreshToken")
+        if (!user) {
+            throw new ApiError(401, "Invalid Access Token")
+        }
+    }
+   
 
     if (!username) {
         throw new ApiError(400, "Username is missing")
@@ -328,15 +377,27 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 channelSubscribedToCount: {
                     $size: "$subscribedTo"
                 },
+                subscribersList: {
+                    $map: {
+                        input: "$subscribers",
+                        as: "subs",
+                        in: "$$subs.subscriber"
+                    }
+                },
                 isSubscribed: {
                     $cond: {
-                        if: {
-                            $in: [req.user?._id, "$subscribers.subscriber"]
-                        },
+                        if: { $in: [user?._id, "$subscribers.subscriber"] },
                         then: true,
                         else: false
                     }
                 }
+                // isSubscribed: {
+                //     $and: [
+                //         { $ne: [user, null] },
+                //         { $ne: [user, undefined] },
+                //         { $in: [user?._id, ["$subscribersList"]] }
+                //     ]
+                // }
             }
         },
         {
@@ -348,14 +409,17 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 coverImage: 1,
                 isSubscribed: 1,
                 subscribersCount: 1,
-                channelSubscribedToCount: 1
+                channelSubscribedToCount: 1,
+                subscribers: 1,
+                subscribedTo: 1,
+                subscribersList: 1
             }
         }
     ])
 
     // console.log('Intermediate Result:', channel);
 
-    if (channel.length===0) {
+    if (channel.length === 0) {
         throw new ApiError(400, "channel does not exists")
     }
     return res.status(200).json(new ApiResponse(200, channel[0], "User Channel fetched successfully"))
@@ -417,6 +481,7 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    deleteUserCoverImage,
     getUserChannelProfile,
     getWatchHistory
 }
