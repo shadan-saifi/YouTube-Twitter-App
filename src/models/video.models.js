@@ -55,7 +55,15 @@ const videoSchema=new Schema({
 
 },{timestamps:true})
 
+// Define a Mongoose middleware function to set maxTimeMS option
+function setMaxTimeMS(next) {
+    // Set maxTimeMS option to 30 seconds (adjust as needed)
+    this.maxTimeMS(60000);
+    next();
+}
 
+// Apply the middleware to all aggregation hooks
+videoSchema.pre('aggregate', setMaxTimeMS);
 
 export const Video=mongoose.model("video",videoSchema)
 
