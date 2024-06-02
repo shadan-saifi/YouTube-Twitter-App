@@ -1,4 +1,4 @@
-import { app } from "../src/app.js";
+import { app } from "./vercel.js";
 import connectDB from "../src/db/index.js";
 
 app.get("/", async (req, res) => {
