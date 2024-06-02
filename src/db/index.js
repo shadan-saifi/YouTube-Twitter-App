@@ -19,7 +19,7 @@ import { DB_NAME } from "../constants.js";
 
 
 // Establish the MongoDB connection
-const dbConnection = mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`, {
+const connectDB = mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   useCreateIndex: true,
@@ -54,5 +54,6 @@ mongoose.connection.on('disconnected', () => {
   clearTimeout(timeout); // Clear the timeout on disconnection
   console.log('MongoDB disconnected');
 });
+export default connectDB
 
 
