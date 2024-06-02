@@ -1,6 +1,8 @@
 import { app } from "../src/app.js";
 import connectDB from "../src/db/index.js";
 
+
+connectDB()
 app.get("/", async (req, res) => {
     try {
         await connectDB(); // Connect to the database

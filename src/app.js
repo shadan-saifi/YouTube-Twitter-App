@@ -48,7 +48,6 @@ import dashboardRouter from './routes/dashboard.routes.js'
 app.use("/api/v1/dashboard",dashboardRouter)
 
 import healthcheckRouter from './routes/healthcheck.routes.js'
-import connectDB from './db/index.js'
 app.use("/api/v1/healthcheck",healthcheckRouter)
 
 
