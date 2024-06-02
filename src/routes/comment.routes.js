@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import {  addTweetComment, addVideoComment,  addreply,  deleteCommentAndReply, getAllReplies, getTweetComments, getVideoComments,  updateCommentAndreply } from "../api/comment.controller.js";
+import {  addTweetComment, addVideoComment,  addreply,  deleteCommentAndReply, getAllReplies, getTweetComments, getVideoComments,  updateCommentAndreply } from "../controllers/comment.controller.js";
 
 
 

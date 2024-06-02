@@ -9,7 +9,7 @@ import {
     getUserPlaylists,
     removeVideoFromPlaylist,
     updatePlaylist
-} from "../api/playlist.controller.js";
+} from "../controllers/playlist.controller.js";
 
 
 
