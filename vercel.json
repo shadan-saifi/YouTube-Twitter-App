@@ -7,7 +7,7 @@
       }
     ],
     "functions": {
-      "src/controllers/**/*.js": {
+      "src/app.js/**/*": {
         "maxDuration": 60
       }
     }
