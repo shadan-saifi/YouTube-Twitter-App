@@ -58,7 +58,7 @@ const videoSchema=new Schema({
 function setMaxTimeMS(next) {
     // Check if options exist and set maxTimeMS if available
     if (this._pipeline !== undefined && this.options !== undefined) {
-        this.options.maxTimeMS = 30000; // Set maxTimeMS to 30 seconds (adjust as needed)
+        this.options = { ...this.options, maxTimeMS: 30000 }; // Set maxTimeMS to 30 seconds (adjust as needed)
     }
     next();
 }
