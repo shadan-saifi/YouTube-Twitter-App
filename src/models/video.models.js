@@ -55,10 +55,11 @@ const videoSchema=new Schema({
 
 },{timestamps:true})
 
-// Define a Mongoose middleware function to set maxTimeMS option
 function setMaxTimeMS(next) {
-    // Set maxTimeMS option to 30 seconds (adjust as needed)
-    this.maxTimeMS(60000);
+    // Check if options exist and set maxTimeMS if available
+    if (this._pipeline !== undefined && this.options !== undefined) {
+        this.options.maxTimeMS = 30000; // Set maxTimeMS to 30 seconds (adjust as needed)
+    }
     next();
 }
 
