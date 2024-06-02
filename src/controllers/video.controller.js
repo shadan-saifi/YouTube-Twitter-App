@@ -121,7 +121,7 @@ const getAllVideos=asyncHandler(async(req,res)=>{
                 ]
             }
         },
-    ]).maxTimeMS(60000)
+    ]).option({ maxTimeMS: 60000})
 
     try {
         const videos = result[0].videos;
