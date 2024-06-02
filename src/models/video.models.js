@@ -55,16 +55,16 @@ const videoSchema=new Schema({
 
 },{timestamps:true})
 
-function setMaxTimeMS(next) {
-    // Check if options exist and set maxTimeMS if available
-    if (this._pipeline !== undefined && this.options !== undefined) {
-        this.options = { ...this.options, maxTimeMS: 30000 }; // Set maxTimeMS to 30 seconds (adjust as needed)
-    }
-    next();
-}
+// function setMaxTimeMS(next) {
+//     // Check if options exist and set maxTimeMS if available
+//     if (this._pipeline !== undefined && this.options !== undefined) {
+//         this.options = { ...this.options, maxTimeMS: 30000 }; // Set maxTimeMS to 30 seconds (adjust as needed)
+//     }
+//     next();
+// }
 
-// Apply the middleware to all aggregation hooks
-videoSchema.pre('aggregate', setMaxTimeMS);
+// // Apply the middleware to all aggregation hooks
+// videoSchema.pre('aggregate', setMaxTimeMS);
 
 export const Video=mongoose.model("video",videoSchema)
 
