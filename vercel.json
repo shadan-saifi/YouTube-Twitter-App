@@ -7,7 +7,7 @@
       }
     ],
     "functions": {
-      "api/app/**/*": {
+      "src/routes/**/*": {
         "maxDuration": 60
       }
     }
