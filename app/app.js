@@ -23,31 +23,31 @@ app.use(express.static("public"))
 app.use(cookieParser())
 
 //config routes
-import userRouter  from "./routes/user.routes.js"
+import userRouter  from "./api/user.routes.js"
 app.use("/api/v1/users", userRouter)
 
-import videoRouter from './routes/video.routes.js'
+import videoRouter from './api/video.routes.js'
 app.use("/api/v1/videos", videoRouter)
 
-import commentRouter from './routes/comment.routes.js'
+import commentRouter from './api/comment.routes.js'
 app.use("/api/v1/comments",commentRouter)
 
-import likeRouter from './routes/like.routes.js'
+import likeRouter from './api/like.routes.js'
 app.use("/api/v1/likes",likeRouter)
 
-import subscriptionRouter from './routes/subscription.routes.js'
+import subscriptionRouter from './api/subscription.routes.js'
 app.use("/api/v1/subscriptions",subscriptionRouter)
 
-import playlistRouter from './routes/playlist.routes.js'
+import playlistRouter from './api/playlist.routes.js'
 app.use("/api/v1/playlist",playlistRouter)
 
-import tweetRouter from './routes/tweet.routes.js'
+import tweetRouter from './api/tweet.routes.js'
 app.use("/api/v1/tweets",tweetRouter)
 
-import dashboardRouter from './routes/dashboard.routes.js'
+import dashboardRouter from './api/dashboard.routes.js'
 app.use("/api/v1/dashboard",dashboardRouter)
 
-import healthcheckRouter from './routes/healthcheck.routes.js'
+import healthcheckRouter from './api/healthcheck.routes.js'
 import connectDB from './db/index.js'
 app.use("/api/v1/healthcheck",healthcheckRouter)
 
