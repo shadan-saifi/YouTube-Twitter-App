@@ -8,10 +8,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 
 const createPlaylist = asyncHandler(async (req, res) => {
-    const { name, description,isPublished } = req.body
+    const { name, description, isPublished } = req.body
     const { videoId } = req.params
 
-    if ([name, description].some((field) => field?.trim() === "")) {
+    if ([name, description, isPublished].some((field) => field?.trim?.() === "" || field === null || field === undefined)) {
         throw new ApiError(400, "All fields are required")
     }
 
@@ -21,12 +21,12 @@ const createPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found")
     }
 
-   
+
     let playlistData = {
         name: name,
         description: description,
         owner: user?._id,
-        isPublished:isPublished === "true" ? true : false,
+        isPublished: isPublished === "true" ? true : false,
     };
 
     if (videoId && isValidObjectId(videoId)) {
@@ -156,7 +156,7 @@ const updatePlaylist = asyncHandler(async (req, res) => {
     const { playlistId } = req.params
     const { name, description, isPublished } = req.body
 
-    if (!name || !description) {
+    if (!name || !description || !isPublished) {
         throw new ApiError(400, "All fields are required")
     }
     if (!isValidObjectId(playlistId)) {
@@ -169,12 +169,11 @@ const updatePlaylist = asyncHandler(async (req, res) => {
                 $set: {
                     name,
                     description,
-                    isPublished:isPublished === "true" ? true : false
+                    isPublished: isPublished === "true" ? true : false
                 }
             },
             { new: true }
         );
-
         if (!updatedPlaylist) {
             throw new ApiError(404, "Playlist not found");
         }
@@ -282,7 +281,8 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 
 const getUserPlaylists = asyncHandler(async (req, res) => {
     const { username } = req.params
-    
+    const { page = 1, limit = 10, sortBy, sortType, isPublished } = req.query
+
 
     if (!username) {
         throw new ApiError(400, "Username is missing")
@@ -291,49 +291,92 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
     if (!user) {
         throw new ApiError(400, "user not found")
     }
+    const Page = parseInt(page);
+    const Limit = parseInt(limit);
 
-    try {
-        const playlists = await Playlist.aggregate([
-            {
-                $match: {
-                    owner: new mongoose.Types.ObjectId(user._id)
+    const pipeline = [];
+    pipeline.push({
+        $match: {
+            owner: new mongoose.Types.ObjectId(user._id)
+        }
+    })
+    if (isPublished) {
+        pipeline.push({
+            $match: {
+                isPublished: isPublished === "true" ? true : false
+            }
+        })
+    }
+
+    pipeline.push(
+        {
+            $lookup:{
+                from:"users",
+                localField:"owner",
+                foreignField:"_id",
+                as:"playlistOwner",
+                pipeline:[{ $project: { fullname: 1, username: 1, avatar: 1 } }]
+            }
+        },
+        {
+            $addFields:{
+                playlistOwner:{$first:"$playlistOwner"}
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "videos",
+                foreignField: "_id",
+                as: "allVideos",
+                pipeline: [{
+                    $lookup: {
+                        from: "users",
+                        localField: "owner",
+                        foreignField: "_id",
+                        as: "owner",
+                        pipeline: [{ $project: { fullname: 1, username: 1, avatar: 1 } }]
+                    }
+                },
+                {
+                    $addFields: {
+                        owner: { $first: "$owner" }
+                    }
                 }
-            },
-            {
-                $lookup: {
-                    from: "videos",
-                    localField: "videos",
-                    foreignField: "_id",
-                    as: "allVideos",
-                    pipeline: [{
-                        $lookup: {
-                            from: "users",
-                            localField: "owner",
-                            foreignField: "_id",
-                            as: "owner",
-                            pipeline: [{ $project: { fullname: 1, username: 1, avatar: 1 } }]
-                        }
-                    },
+                ]
+            }
+        },
+        {
+            $addFields: {
+                TotalVideos: { $size: "$allVideos" }
+            }
+        },
+        {
+            $facet: {
+                playlists: [
+                    { $skip: (Page - 1) * Limit },
+                    { $limit: Limit },
                     {
-                        $addFields: {
-                            owner: { $first: "$owner" }
+                        $sort: {
+                            score: -1,
+                            [sortBy]: sortType === 'asc' ? 1 : -1
                         }
                     }
-                    ]
-                }
-            },
-            {
-                $addFields: {
-                    TotalVideos: { $size: "$allVideos" }
-                }
+                ],
+                totalPlaylists: [
+                    { $count: "count" }
+                ]
             }
-        ])
-        const totalPlaylists = playlists.length
-        if (totalPlaylists === 0) {
-            res.status(200).json(new ApiResponse(200, playlists, "User do not hane any playlists to show"))
         }
+    )
 
-        res.status(200).json(new ApiResponse(200, { playlists, totalPlaylists }, "All Playlists fetched successfully"))
+     try {
+        const result = await Playlist.aggregate(pipeline)
+        const playlists = result[0].playlists;
+        const playlistsOnPage = playlists.length
+        const totalPlaylists = result[0].totalPlaylists[0]?.count || 0;
+
+        res.status(200).json(new ApiResponse(200, { playlists,playlistsOnPage, totalPlaylists }, "Playlists fetched successfully"))
     } catch (error) {
         throw new ApiError(401, error.message)
     }

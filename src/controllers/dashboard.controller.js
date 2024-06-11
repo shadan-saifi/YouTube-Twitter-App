@@ -200,8 +200,6 @@ const getChannelVideos = asyncHandler(async (req, res) => {
         const videos = result[0].videos;
         const videosOnPage = videos.length
         const totalVideos = result[0].totalVideos[0]?.count || 0;
-
-
         return res.status(200).json(new ApiResponse(200, { videos, videosOnPage, totalVideos }, "Videos list fetched successfully"));
     } catch (error) {
         throw new ApiError(400, error.message || "Something went wrong");
