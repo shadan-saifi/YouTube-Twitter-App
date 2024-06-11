@@ -257,6 +257,7 @@ const getSearchedVideos = asyncHandler(async (req, res) => {
 
 const getAllUserVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, sortBy, sortType, isPublished, username } = req.query
+    // console.log("getAllUserVideos query:",req?.query);
 
     if (!username) {
         throw new ApiError(400, "Username is missing")
@@ -467,6 +468,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     if (!isVideoExist) {
         throw new ApiError(404, "Video not found")
     }
+    // await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
 
     const video = await Video.aggregate([
         {
